@@ -1,0 +1,25 @@
+{
+  "name": "sgoettsch/monolog-datadog",
+  "description": "Monolog Handler to forward logs to Datadog",
+  "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "monolog"
+  ],
+  "homepage": "https://github.com/sgoettsch/monolog-datadog",
+  "authors": [
+    {
+      "name": "Sebastian Goettsch"
+    }
+  ],
+  "require": {
+    "php": "^8.0",
+    "ext-curl": "*",
+    "monolog/monolog": ">=1.0 <3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "sgoettsch\\MonologDatadog\\": "src"
+    }
+  }
+}
