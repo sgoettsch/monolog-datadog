@@ -1,6 +1,6 @@
 {
   "name": "sgoettsch/monolog-datadog",
-  "description": "Monolog Handler to forward logs to Datadog",
+  "description": "Monolog Handler to forward logs to Datadog using async requests.",
   "type": "library",
   "license": "MIT",
   "keywords": [
@@ -15,11 +15,12 @@
   "require": {
     "php": "^8.0",
     "ext-curl": "*",
-    "monolog/monolog": ">=1.0 <3.0"
+    "monolog/monolog": ">=1.0 <3.0",
+    "guzzlehttp/guzzle": "^7.5"
   },
   "autoload": {
     "psr-4": {
-      "sgoettsch\\MonologDatadog\\": "src"
+      "sgoettsch\\MonologDatadog\\": "src/Monolog"
     }
   }
 }

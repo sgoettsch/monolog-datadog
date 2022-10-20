@@ -1,6 +1,6 @@
 # Datadog Monolog integration
 
-This log handler for Monolog that pushes logs to datadog.
+Monolog Handler to forward logs to Datadog using async requests.
 
 ## Requirements
 - PHP 8.0+
@@ -21,7 +21,7 @@ use Monolog\Logger;
 use sgoettsch\MonologDatadog\Handler\DatadogHandler;
 
 $apiKey = 'DATADOG-API-KEY';
-$host = 'https://http-intake.logs.datadoghq.com'; // could be set to other domains for example for EU hosted accounts
+$host = 'https://http-intake.logs.datadoghq.com'; // could be set to other domains for example for EU hosted accounts ( https://http-intake.logs.datadoghq.eu )
 $attributes = [
     'hostname' => 'YOUR_HOSTNAME',
     'source' => 'php',

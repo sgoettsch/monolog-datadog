@@ -2,12 +2,14 @@
 
 namespace sgoettsch\MonologDatadog\Handler;
 
+use JsonException;
 use Monolog\Handler\MissingExtensionException;
 use Monolog\Logger;
 use Monolog\Handler\AbstractProcessingHandler;
-use Monolog\Handler\Curl\Util;
 use Monolog\Formatter\FormatterInterface;
 use sgoettsch\MonologDatadog\Formatter\DatadogFormatter;
+use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Request;
 
 class DatadogHandler extends AbstractProcessingHandler
 {
@@ -51,6 +53,7 @@ class DatadogHandler extends AbstractProcessingHandler
      *
      * @param array $record
      * @return void
+     * @throws JsonException
      */
     protected function write(array $record): void
     {
@@ -61,31 +64,34 @@ class DatadogHandler extends AbstractProcessingHandler
      * Send request to Datadog
      *
      * @param array $record
+     * @throws JsonException
+     * @noinspection SpellCheckingInspection
      */
     protected function send(array $record): void
     {
-        $headers = ['Content-Type:application/json'];
+        $headers = [
+            'Content-Type' => 'application/json',
+            'DD-API-KEY' => $this->apiKey
+        ];
 
         $source = $this->getSource();
         $hostname = $this->getHostname();
         $service = $this->getService($record);
         $tags = $this->getTags($record);
 
-        $url = $this->host . '/v1/input/';
-        $url .= $this->apiKey;
-        /** @noinspection SpellCheckingInspection */
-        $url .= '?ddsource=' . $source . '&service=' . $service . '&hostname=' . $hostname . '&ddtags=' . $tags;
+        $url = $this->host . '/api/v2/logs';
 
-        $ch = curl_init();
+        $payLoad = json_decode($record['formatted'], true, 512, JSON_THROW_ON_ERROR);
+        $payLoad['ddsource'] = $source;
+        $payLoad['ddtags'] = $tags;
+        $payLoad['hostname'] = $hostname;
+        $payLoad['service'] = $service;
 
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $record['formatted']);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        $client = new Client();
+        $request = new Request('POST', $url, $headers, json_encode($payLoad, JSON_THROW_ON_ERROR));
 
-        Util::execute($ch);
+        $promise = $client->sendAsync($request);
+        $promise->wait();
     }
 
     /**
