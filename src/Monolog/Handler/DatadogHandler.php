@@ -4,9 +4,11 @@ namespace sgoettsch\MonologDatadog\Handler;
 
 use JsonException;
 use Monolog\Handler\MissingExtensionException;
+use Monolog\Level;
 use Monolog\Logger;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Formatter\FormatterInterface;
+use Monolog\LogRecord;
 use sgoettsch\MonologDatadog\Formatter\DatadogFormatter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
@@ -26,7 +28,7 @@ class DatadogHandler extends AbstractProcessingHandler
      * @param string $apiKey Datadog API-Key
      * @param string $host Datadog API host
      * @param array $attributes Datadog optional attributes
-     * @param int|string $level The minimum logging level at which this handler will be triggered
+     * @param Level $level The minimum logging level at which this handler will be triggered
      * @param bool $bubble Whether the messages that are handled can bubble up the stack or not
      * @throws MissingExtensionException
      */
@@ -34,7 +36,7 @@ class DatadogHandler extends AbstractProcessingHandler
         string $apiKey,
         string $host = 'https://http-intake.logs.datadoghq.com',
         array $attributes = [],
-        int|string $level = Logger::DEBUG,
+        Level $level = Level::Debug,
         bool $bubble = true
     ) {
         if (!extension_loaded('curl')) {
@@ -51,11 +53,11 @@ class DatadogHandler extends AbstractProcessingHandler
     /**
      * Writes the record down to the log of the implementing handler
      *
-     * @param array $record
+     * @param LogRecord $record
      * @return void
      * @throws JsonException
      */
-    protected function write(array $record): void
+    protected function write(LogRecord $record): void
     {
         $this->send($record);
     }
@@ -63,11 +65,11 @@ class DatadogHandler extends AbstractProcessingHandler
     /**
      * Send request to Datadog
      *
-     * @param array $record
+     * @param LogRecord $record
      * @throws JsonException
      * @noinspection SpellCheckingInspection
      */
-    protected function send(array $record): void
+    protected function send(LogRecord $record): void
     {
         $headers = [
             'Content-Type' => 'application/json',
@@ -107,11 +109,11 @@ class DatadogHandler extends AbstractProcessingHandler
     /**
      * Get Datadog Service from $attributes params.
      *
-     * @param array $record
+     * @param LogRecord $record
      *
      * @return string
      */
-    protected function getService(array $record): string
+    protected function getService(LogRecord $record): string
     {
         return $this->attributes['service'] ?? $record['channel'];
     }
@@ -129,11 +131,11 @@ class DatadogHandler extends AbstractProcessingHandler
     /**
      * Get Datadog Tags from $attributes params.
      *
-     * @param array $record
+     * @param LogRecord $record
      *
      * @return string
      */
-    protected function getTags(array $record): string
+    protected function getTags(LogRecord $record): string
     {
         $defaultTag = 'level:' . $record['level_name'];
 
