@@ -15,7 +15,7 @@
   "require": {
     "php": "^8.0",
     "ext-curl": "*",
-    "monolog/monolog": ">=1.0 <3.0",
+    "monolog/monolog": "^3.0",
     "guzzlehttp/guzzle": "^7.5"
   },
   "autoload": {
