@@ -3,13 +3,13 @@
 namespace sgoettsch\MonologDatadog\Handler;
 
 use JsonException;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\MissingExtensionException;
 use Monolog\Level;
 use Monolog\Logger;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\LogRecord;
-use sgoettsch\MonologDatadog\Formatter\DatadogFormatter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 
@@ -83,7 +83,12 @@ class DatadogHandler extends AbstractProcessingHandler
 
         $url = $this->host . '/api/v2/logs';
 
-        $payLoad = json_decode($record['formatted'], true, 512, JSON_THROW_ON_ERROR);
+        $formated = json_decode($record->formatted, true, 512, JSON_THROW_ON_ERROR);
+
+        // Datadog requires the log level in the status attribute.
+        $formated['status'] = strtolower($record['level_name']);
+
+        $payLoad = $formated;
         $payLoad['ddsource'] = $source;
         $payLoad['ddtags'] = $tags;
         $payLoad['hostname'] = $hostname;
@@ -157,11 +162,9 @@ class DatadogHandler extends AbstractProcessingHandler
 
     /**
      * Returns the default formatter to use with this handler
-     *
-     * @return DatadogFormatter
      */
     protected function getDefaultFormatter(): FormatterInterface
     {
-        return new DatadogFormatter();
+        return new JsonFormatter();
     }
 }
