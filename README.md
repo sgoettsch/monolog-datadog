@@ -3,7 +3,7 @@
 Monolog Handler to forward logs to Datadog using async requests.
 
 ## Requirements
-- PHP 8.0+
+- PHP 8.1+
 - PHP Curl
 
 ## Installation
