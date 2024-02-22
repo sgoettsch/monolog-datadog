@@ -6,6 +6,7 @@ use JsonException;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\MissingExtensionException;
 use Monolog\Level;
+use Monolog\Logger;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\LogRecord;
@@ -23,15 +24,12 @@ class DatadogHandler extends AbstractProcessingHandler
     /** @var array Datadog optional attributes */
     private array $attributes;
 
-    private bool $sendAsync;
-
     /**
      * @param string $apiKey Datadog API-Key
      * @param string $host Datadog API host
      * @param array $attributes Datadog optional attributes
      * @param Level $level The minimum logging level at which this handler will be triggered
      * @param bool $bubble Whether the messages that are handled can bubble up the stack or not
-     * @param bool $sendAsync Whether to send the log asynchronously (requires pcntl extension)
      * @throws MissingExtensionException
      */
     public function __construct(
@@ -39,8 +37,7 @@ class DatadogHandler extends AbstractProcessingHandler
         string $host = 'https://http-intake.logs.datadoghq.com',
         array $attributes = [],
         Level $level = Level::Debug,
-        bool $bubble = true,
-        bool $sendAsync = true,
+        bool $bubble = true
     ) {
         if (!extension_loaded('curl')) {
             throw new MissingExtensionException('The curl extension is needed to use the DatadogHandler');
@@ -51,7 +48,6 @@ class DatadogHandler extends AbstractProcessingHandler
         $this->apiKey = $apiKey;
         $this->host = $host;
         $this->attributes = $attributes;
-        $this->sendAsync = $sendAsync;
     }
 
     /**
@@ -98,62 +94,11 @@ class DatadogHandler extends AbstractProcessingHandler
         $payLoad['hostname'] = $hostname;
         $payLoad['service'] = $service;
 
+        $client = new Client();
         $request = new Request('POST', $url, $headers, json_encode($payLoad, JSON_THROW_ON_ERROR));
 
-        if ($this->sendAsync()) {
-            $this->sendRequestAsync($request);
-        } else {
-            $this->sendRequestSync($request);
-        }
-    }
-
-    /**
-     * Send request synchronously
-     */
-    private function sendRequestSync(Request $request): void
-    {
-        $client = new Client();
-        $client->send($request);
-    }
-
-    /**
-     * Send request asynchronously
-     */
-    private function sendRequestAsync(Request $request): void
-    {
-        $client = new Client();
-
-        if (!function_exists('pcntl_fork')) {
-            throw new \RuntimeException('pcntl extension is required for async datadog logging');
-        }
-
-        $forkProcess = pcntl_fork();
-
-        if ($forkProcess === -1) {
-            throw new \RuntimeException('Failed to fork process for async datadog logging');
-        }
-
-        if ($forkProcess !== 0) {
-            $promise = $client->sendAsync($request);
-            $promise->wait();
-
-            exit(0);
-        }
-    }
-
-    /**
-     * Check if the log should be sent asynchronously
-     *
-     * @return bool
-     */
-    private function sendAsync(): bool
-    {
-        // Requires pcntl extension and pcntl_fork function
-        if (!function_exists('pcntl_fork')) {
-            return false;
-        }
-
-        return $this->sendAsync;
+        $promise = $client->sendAsync($request);
+        $promise->wait();
     }
 
     /**
