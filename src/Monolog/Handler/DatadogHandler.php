@@ -84,9 +84,10 @@ class DatadogHandler extends AbstractProcessingHandler
         $url = $this->host . '/api/v2/logs';
 
         $formated = json_decode($record->formatted, true, 512, JSON_THROW_ON_ERROR);
+        $logRecord = $record->toArray();
 
         // Datadog requires the log level in the status attribute.
-        $formated['status'] = strtolower($record['level_name']);
+        $formated['status'] = strtolower($logRecord['level_name']);
 
         $payLoad = $formated;
         $payLoad['ddsource'] = $source;
@@ -142,7 +143,9 @@ class DatadogHandler extends AbstractProcessingHandler
      */
     protected function getTags(LogRecord $record): string
     {
-        $defaultTag = 'level:' . $record['level_name'];
+        $logRecord = $record->toArray();
+
+        $defaultTag = 'level:' . $logRecord['level_name'];
 
         if (!isset($this->attributes['tags']) || !$this->attributes['tags']) {
             return $defaultTag;
@@ -150,7 +153,6 @@ class DatadogHandler extends AbstractProcessingHandler
 
         if (
             (is_array($this->attributes['tags']) || is_object($this->attributes['tags']))
-            && !empty($this->attributes['tags'])
         ) {
             $imploded = implode(',', (array)$this->attributes['tags']);
 

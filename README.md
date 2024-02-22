@@ -30,7 +30,7 @@ $attributes = [
 
 $logger = new Logger('datadog-channel');
 
-$datadogLogs = new DatadogHandler($apiKey, $host, $attributes, Logger::INFO);
+$datadogLogs = new DatadogHandler($apiKey, $host, $attributes, Monolog\Level::Info);
 
 $logger->pushHandler($datadogLogs);
 

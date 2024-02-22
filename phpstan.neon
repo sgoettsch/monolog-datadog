@@ -1,0 +1,13 @@
+parameters:
+	level: 8
+	checkMissingIterableValueType: false
+	paths:
+		- src
+
+	excludePaths:
+	    analyse:
+	        - ./vendor/*
+	        - ./tests/*
+
+	scanDirectories:
+	    - ./vendor/
