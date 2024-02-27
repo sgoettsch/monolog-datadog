@@ -52,7 +52,7 @@ class DatadogHandler extends AbstractProcessingHandler
         $this->attributes = $attributes;
     }
 
-    public function setClient(Client $client)
+    public function setClient(Client $client): void
     {
         $this->client = $client;
     }
