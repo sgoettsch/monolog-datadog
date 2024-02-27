@@ -24,6 +24,8 @@ class DatadogHandler extends AbstractProcessingHandler
     /** @var array Datadog optional attributes */
     private array $attributes;
 
+    private Client $client;
+
     /**
      * @param string $apiKey Datadog API-Key
      * @param string $host Datadog API host
@@ -50,6 +52,11 @@ class DatadogHandler extends AbstractProcessingHandler
         $this->attributes = $attributes;
     }
 
+    public function setClient(Client $client)
+    {
+        $this->client = $client;
+    }
+
     /**
      * Writes the record down to the log of the implementing handler
      *
@@ -73,7 +80,7 @@ class DatadogHandler extends AbstractProcessingHandler
     {
         $headers = [
             'Content-Type' => 'application/json',
-            'DD-API-KEY' => $this->apiKey
+            'DD-API-KEY' => $this->apiKey,
         ];
 
         $source = $this->getSource();
@@ -95,7 +102,7 @@ class DatadogHandler extends AbstractProcessingHandler
         $payLoad['hostname'] = $hostname;
         $payLoad['service'] = $service;
 
-        $client = new Client();
+        $client = $this->client ?? new Client();
         $request = new Request('POST', $url, $headers, json_encode($payLoad, JSON_THROW_ON_ERROR));
 
         $promise = $client->sendAsync($request);
