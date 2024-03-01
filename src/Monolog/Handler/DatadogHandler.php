@@ -47,6 +47,10 @@ class DatadogHandler extends AbstractProcessingHandler
 
         parent::__construct($level, $bubble);
 
+        if (!isset($attributes['traceId'])) {
+            $attributes['traceId'] = uniqid();
+        }
+
         $this->apiKey = $apiKey;
         $this->host = $host;
         $this->attributes = $attributes;
@@ -85,6 +89,7 @@ class DatadogHandler extends AbstractProcessingHandler
 
         $source = $this->getSource();
         $hostname = $this->getHostname();
+        $traceId = $this->getTraceId();
         $service = $this->getService($record);
         $tags = $this->getTags($record);
 
@@ -100,6 +105,7 @@ class DatadogHandler extends AbstractProcessingHandler
         $payLoad['ddsource'] = $source;
         $payLoad['ddtags'] = $tags;
         $payLoad['hostname'] = $hostname;
+        $payLoad['trace_id'] = $traceId;
         $payLoad['service'] = $service;
 
         $client = $this->client ?? new Client();
@@ -139,6 +145,16 @@ class DatadogHandler extends AbstractProcessingHandler
     protected function getHostname(): string
     {
         return $this->attributes['hostname'] ?? $_SERVER['SERVER_NAME'];
+    }
+
+    /**
+     * Get Datadog Trace ID from $attributes params.
+     *
+     * @return string
+     */
+    protected function getTraceId(): string
+    {
+        return $this->attributes['traceId'];
     }
 
     /**
