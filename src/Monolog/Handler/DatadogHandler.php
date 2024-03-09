@@ -6,7 +6,6 @@ use JsonException;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\MissingExtensionException;
 use Monolog\Level;
-use Monolog\Logger;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\LogRecord;
@@ -24,7 +23,11 @@ class DatadogHandler extends AbstractProcessingHandler
     /** @var array Datadog optional attributes */
     private array $attributes;
 
+    /** @var Client to overwrite the default client */
     private Client $client;
+
+    /** @var bool use async sending, will always fall back to non async mode if async not available */
+    private bool $useAsync = false;
 
     /**
      * @param string $apiKey Datadog API-Key
@@ -32,6 +35,7 @@ class DatadogHandler extends AbstractProcessingHandler
      * @param array $attributes Datadog optional attributes
      * @param Level $level The minimum logging level at which this handler will be triggered
      * @param bool $bubble Whether the messages that are handled can bubble up the stack or not
+     * @param bool $async Use async sending, will always fall back to non async mode if async not available
      * @throws MissingExtensionException
      */
     public function __construct(
@@ -39,7 +43,8 @@ class DatadogHandler extends AbstractProcessingHandler
         string $host = 'https://http-intake.logs.datadoghq.com',
         array $attributes = [],
         Level $level = Level::Debug,
-        bool $bubble = true
+        bool $bubble = true,
+        bool $async = false
     ) {
         if (!extension_loaded('curl')) {
             throw new MissingExtensionException('The curl extension is needed to use the DatadogHandler');
@@ -54,6 +59,7 @@ class DatadogHandler extends AbstractProcessingHandler
         $this->apiKey = $apiKey;
         $this->host = $host;
         $this->attributes = $attributes;
+        $this->useAsync = $async;
     }
 
     public function setClient(Client $client): void
@@ -110,6 +116,12 @@ class DatadogHandler extends AbstractProcessingHandler
 
         $client = $this->client ?? new Client();
         $request = new Request('POST', $url, $headers, json_encode($payLoad, JSON_THROW_ON_ERROR));
+
+        if ($this->canAsync()) {
+            if ($this->fireAndForget($client, $request)) {
+                return;
+            }
+        }
 
         $promise = $client->sendAsync($request);
         $promise->wait();
@@ -191,5 +203,48 @@ class DatadogHandler extends AbstractProcessingHandler
     protected function getDefaultFormatter(): FormatterInterface
     {
         return new JsonFormatter();
+    }
+
+    private function canAsync(): bool
+    {
+        if (!function_exists('pcntl_fork')) {
+            return false;
+        }
+
+        return $this->useAsync;
+    }
+
+    private function fireAndForget(Client $client, Request $request): bool
+    {
+        if (!function_exists('pcntl_fork')) {
+            return false;
+        }
+
+        $pid = pcntl_fork();
+
+        if ($pid === -1) {
+            return false;
+        } elseif ($pid === 0) {
+            return true;
+        } else {
+            register_shutdown_function(function ($pid) {
+                if (!function_exists('pcntl_waitpid')) {
+                    return false;
+                }
+
+                // keep the process alive until main finishes, this does not end any shared connections like mysql
+                pcntl_waitpid($pid, $status);
+
+                return true;
+            }, $pid);
+            $this->sendRequest($client, $request);
+            exit();
+        }
+    }
+
+    private function sendRequest(Client $client, Request $request): void
+    {
+        $promise = $client->sendAsync($request);
+        $promise->wait();
     }
 }

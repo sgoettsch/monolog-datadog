@@ -18,6 +18,9 @@
     "monolog/monolog": "^3.0",
     "guzzlehttp/guzzle": "^7.5"
   },
+  "suggest": {
+    "ext-pcntl": "*"
+  },
   "autoload": {
     "psr-4": {
       "sgoettsch\\MonologDatadog\\": "src/Monolog"
@@ -27,6 +30,8 @@
     "phpunit/phpunit": "^10.0"
   },
   "scripts": {
-    "test": "php vendor/bin/phpunit --fail-on-deprecation"
+    "test": "php vendor/bin/phpunit --fail-on-deprecation",
+    "codeStyle:fix": "docker run --rm -v %CD%\\\\:/data cytopia/php-cs-fixer fix .",
+    "code:check": "docker run --rm --mount type=bind,src=%CD%\\\\,target=/app ghcr.io/sgoettsch/docker-phpstan:latest-php8.1 analyse /app"
   }
 }
