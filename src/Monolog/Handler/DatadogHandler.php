@@ -156,7 +156,7 @@ class DatadogHandler extends AbstractProcessingHandler
      */
     protected function getHostname(): string
     {
-        return $this->attributes['hostname'] ?? $_SERVER['SERVER_NAME'];
+        return $this->attributes['hostname'] ?? $_SERVER['SERVER_NAME'] ?? '';
     }
 
     /**

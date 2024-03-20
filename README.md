@@ -1,10 +1,14 @@
 # Datadog Monolog integration
 
 Monolog Handler to forward logs to Datadog using async requests.
+Uses pcntl for async logging, will automatically fall back to non async requests if pcntl is not available.
 
 ## Requirements
 - PHP 8.1+
 - PHP Curl
+
+## Optional
+- php-pcntl ( required for async logging )
 
 ## Installation
 
@@ -35,8 +39,8 @@ $datadogLogs = new DatadogHandler($apiKey, $host, $attributes, Monolog\Level::In
 $logger->pushHandler($datadogLogs);
 
 $logger->info('i am an info');
-$logger->warning('i am a warning..');
-$logger->error('i am an error ');
+$logger->warning('i am a warning');
+$logger->error('i am an error');
 $logger->notice('i am a notice');
 $logger->emergency('i am an emergency');
 ```
