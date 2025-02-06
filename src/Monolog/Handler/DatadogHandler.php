@@ -207,14 +207,12 @@ class DatadogHandler extends AbstractProcessingHandler
 
     private function canAsync(): bool
     {
-        return false;
-        /*
         if (!function_exists('pcntl_fork')) {
             return false;
         }
+        $this->useAsync = false;
 
         return $this->useAsync;
-        */
     }
 
     private function fireAndForget(Client $client, Request $request): bool
