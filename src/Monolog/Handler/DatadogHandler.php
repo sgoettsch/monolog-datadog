@@ -210,6 +210,7 @@ class DatadogHandler extends AbstractProcessingHandler
         if (!function_exists('pcntl_fork')) {
             return false;
         }
+        $this->useAsync = false;
 
         return $this->useAsync;
     }
