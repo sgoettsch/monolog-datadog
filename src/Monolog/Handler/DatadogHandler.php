@@ -29,6 +29,9 @@ class DatadogHandler extends AbstractProcessingHandler
     /** @var bool use async sending, will always fall back to non async mode if async not available */
     private bool $useAsync = false;
 
+    /** @var array Queue for async sending */
+    private array $logQueue;
+
     /**
      * @param string $apiKey Datadog API-Key
      * @param string $host Datadog API host
@@ -41,10 +44,10 @@ class DatadogHandler extends AbstractProcessingHandler
     public function __construct(
         string $apiKey,
         string $host = 'https://http-intake.logs.datadoghq.com',
-        array $attributes = [],
-        Level $level = Level::Debug,
-        bool $bubble = true,
-        bool $async = false
+        array  $attributes = [],
+        Level  $level = Level::Debug,
+        bool   $bubble = true,
+        bool   $async = false
     ) {
         if (!extension_loaded('curl')) {
             throw new MissingExtensionException('The curl extension is needed to use the DatadogHandler');
@@ -53,13 +56,17 @@ class DatadogHandler extends AbstractProcessingHandler
         parent::__construct($level, $bubble);
 
         if (!isset($attributes['traceId'])) {
-            $attributes['traceId'] = uniqid();
+            $attributes['traceId'] = uniqid("", true);
         }
 
         $this->apiKey = $apiKey;
         $this->host = $host;
         $this->attributes = $attributes;
         $this->useAsync = $async;
+
+        if ($this->canAsync()) {
+            register_shutdown_function([$this, 'processQueue']);
+        }
     }
 
     public function setClient(Client $client): void
@@ -88,18 +95,11 @@ class DatadogHandler extends AbstractProcessingHandler
      */
     protected function send(LogRecord $record): void
     {
-        $headers = [
-            'Content-Type' => 'application/json',
-            'DD-API-KEY' => $this->apiKey,
-        ];
-
         $source = $this->getSource();
         $hostname = $this->getHostname();
         $traceId = $this->getTraceId();
         $service = $this->getService($record);
         $tags = $this->getTags($record);
-
-        $url = $this->host . '/api/v2/logs';
 
         $formated = json_decode($record->formatted, true, 512, JSON_THROW_ON_ERROR);
         $logRecord = $record->toArray();
@@ -113,18 +113,14 @@ class DatadogHandler extends AbstractProcessingHandler
         $payLoad['hostname'] = $hostname;
         $payLoad['trace_id'] = $traceId;
         $payLoad['service'] = $service;
-
-        $client = $this->client ?? new Client();
-        $request = new Request('POST', $url, $headers, json_encode($payLoad, JSON_THROW_ON_ERROR));
+        $payLoad['timestamp'] = date('c', time());
 
         if ($this->canAsync()) {
-            if ($this->fireAndForget($client, $request)) {
-                return;
-            }
+            $this->addToQueue($payLoad);
+            return;
         }
 
-        $promise = $client->sendAsync($request);
-        $promise->wait();
+        $this->sendLog($payLoad);
     }
 
     /**
@@ -207,44 +203,43 @@ class DatadogHandler extends AbstractProcessingHandler
 
     private function canAsync(): bool
     {
-        if (!function_exists('pcntl_fork')) {
+        if (!function_exists('register_shutdown_function')) {
             return false;
         }
-        $this->useAsync = false;
 
         return $this->useAsync;
     }
 
-    private function fireAndForget(Client $client, Request $request): bool
+    private function addToQueue(array $payload): void
     {
-        if (!function_exists('pcntl_fork')) {
-            return false;
-        }
+        $this->logQueue[] = $payload;
+    }
 
-        $pid = pcntl_fork();
-
-        if ($pid === -1) {
-            return false;
-        } elseif ($pid === 0) {
-            return true;
-        } else {
-            register_shutdown_function(function ($pid) {
-                if (!function_exists('pcntl_waitpid')) {
-                    return false;
-                }
-
-                // keep the process alive until main finishes, this does not end any shared connections like mysql
-                pcntl_waitpid($pid, $status);
-
-                return true;
-            }, $pid);
-            $this->sendRequest($client, $request);
-            exit();
+    /**
+     * @throws JsonException
+     */
+    public function processQueue(): void
+    {
+        foreach ($this->logQueue as $logEntry) {
+            $this->sendLog($logEntry);
         }
     }
 
-    private function sendRequest(Client $client, Request $request): void
+    /**
+     * @throws JsonException
+     */
+    private function sendLog(array $payLoad): void
     {
+        $headers = [
+            'Content-Type' => 'application/json',
+            'DD-API-KEY' => $this->apiKey,
+        ];
+
+        $url = $this->host . '/api/v2/logs';
+
+        $client = $this->client ?? new Client(['synchronous' => false]);
+        $request = new Request('POST', $url, $headers, json_encode($payLoad, JSON_THROW_ON_ERROR));
+
         $promise = $client->sendAsync($request);
         $promise->wait();
     }
